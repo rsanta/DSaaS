@@ -235,12 +235,6 @@ dsaas/
 - **OpenAI GPT-4o-mini** - Motor de búsqueda semántica
 - **dotenv** - Gestión de variables de entorno
 
-## Seguridad
-
-- No incluyas el archivo `.env` en el repositorio
-- Usa reglas de seguridad apropiadas en Firebase para producción
-- Implementa autenticación para endpoints en producción
-- Rotación regular de API keys
 
 ## Autor
 
@@ -249,3 +243,4 @@ dsaas/
 ## Repositorio
 
 https://github.com/rsanta/DSaaS
+
