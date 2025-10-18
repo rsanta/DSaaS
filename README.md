@@ -204,29 +204,6 @@ dsaas/
 }
 ```
 
-## Solución de Problemas
-
-### Error: permission_denied
-- Verifica las reglas de seguridad en Firebase Console
-- Para desarrollo, usa reglas abiertas:
-```json
-{
-  "rules": {
-    ".read": true,
-    ".write": true
-  }
-}
-```
-
-### Error: OPENAI_API_KEY missing
-- Verifica que el archivo `.env` existe en la raíz del proyecto
-- Confirma que la variable `OPENAI_API_KEY` está configurada
-- Reinicia el servidor después de modificar `.env`
-
-### Error: Module import
-- Verifica que `"type": "module"` está en `package.json`
-- Asegúrate de usar la extensión `.js` en todos los imports
-
 ## Tecnologías
 
 - **Node.js** - Entorno de ejecución
@@ -243,4 +220,5 @@ dsaas/
 ## Repositorio
 
 https://github.com/rsanta/DSaaS
+
 
