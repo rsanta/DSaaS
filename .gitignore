@@ -1,4 +1,19 @@
-# Node.js
+# Node modules
 node_modules/
+
+# Entorno
 .env
-npm-debug.log*
+
+# Logs
+*.log
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Dependencias lock
+package-lock.json
