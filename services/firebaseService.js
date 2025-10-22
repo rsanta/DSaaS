@@ -5,10 +5,10 @@ dotenv.config();
 
 /**
  * Fetches all documents from Firebase Realtime Database
- * @param {string} path - Database path (default: 'documentos')
+ * @param {string} path - Database path (default: 'documents')
  * @returns {Promise<Array>} - Array of documents
  */
-export const fetchDocuments = async (path = 'documentos') => {
+export const fetchDocuments = async (path = 'documents') => {
   try {
     console.log(`Attempting to fetch documents from path: ${path}`);
     
@@ -76,7 +76,7 @@ export const fetchLogbook = async (path = 'logbook') => {
  * @param {string} path - Database path
  * @returns {Promise<Object|null>} - Document object or null
  */
-export const fetchDocumentById = async (documentId, path = 'documentos') => {
+export const fetchDocumentById = async (documentId, path = 'documents') => {
   try {
     const db = getDatabase();
     const ref = db.ref(`${path}/${documentId}`);

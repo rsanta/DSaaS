@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
 import 'firebase/compat/database';
 
 dotenv.config();
@@ -15,17 +16,22 @@ const firebaseConfig = {
 };
 
 let db = null;
+let auth = null;
 
-export const initializeFirebase = () => {
-  console.log('Initializing Firebase with config:');
-  console.log('Database URL:', firebaseConfig.databaseURL);
-  console.log('Project ID:', firebaseConfig.projectId);
-  
+export const initializeFirebase = async () => {
   if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
     db = firebase.database();
+    auth = firebase.auth();
     console.log('Firebase initialized successfully');
-    console.log('Database instance:', db ? 'OK' : 'FAILED');
+    
+    // Autenticación anónima para acceso de lectura
+    try {
+      await auth.signInAnonymously();
+      console.log('Authenticated anonymously with Firebase');
+    } catch (error) {
+      console.error('Error authenticating with Firebase:', error);
+    }
   }
   return db;
 };
@@ -35,6 +41,13 @@ export const getDatabase = () => {
     throw new Error('Firebase not initialized. Call initializeFirebase() first.');
   }
   return db;
+};
+
+export const getAuth = () => {
+  if (!auth) {
+    throw new Error('Firebase Auth not initialized. Call initializeFirebase() first.');
+  }
+  return auth;
 };
 
 export { firebase };
