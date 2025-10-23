@@ -8,8 +8,241 @@ const openai = new OpenAI({
 });
 
 /**
+ * Normaliza el mes a número (1-12)
+ */
+const normalizeMonth = (monthInput) => {
+  if (!monthInput) return null;
+  
+  const input = String(monthInput).toLowerCase().trim();
+  
+  const monthMappings = {
+    '1': 1, '01': 1, 'enero': 1, 'ene': 1, 'jan': 1, 'january': 1,
+    '2': 2, '02': 2, 'febrero': 2, 'feb': 2, 'february': 2,
+    '3': 3, '03': 3, 'marzo': 3, 'mar': 3, 'march': 3,
+    '4': 4, '04': 4, 'abril': 4, 'abr': 4, 'apr': 4, 'april': 4,
+    '5': 5, '05': 5, 'mayo': 5, 'may': 5,
+    '6': 6, '06': 6, 'junio': 6, 'jun': 6, 'june': 6,
+    '7': 7, '07': 7, 'julio': 7, 'jul': 7, 'july': 7,
+    '8': 8, '08': 8, 'agosto': 8, 'ago': 8, 'aug': 8, 'august': 8,
+    '9': 9, '09': 9, 'septiembre': 9, 'sep': 9, 'sept': 9, 'september': 9,
+    '10': 10, 'octubre': 10, 'oct': 10, 'october': 10,
+    '11': 11, 'noviembre': 11, 'nov': 11, 'november': 11,
+    '12': 12, 'diciembre': 12, 'dic': 12, 'dec': 12, 'december': 12
+  };
+  
+  return monthMappings[input] || null;
+};
+
+/**
+ * Extrae el mes de una fecha (maneja timestamps, strings DD/MM/YYYY, ISO dates)
+ */
+const extractMonth = (dateValue) => {
+  if (!dateValue) return null;
+  
+  try {
+    // Si es un número (timestamp)
+    if (typeof dateValue === 'number') {
+      const date = new Date(dateValue);
+      if (!isNaN(date.getTime())) {
+        return date.getMonth() + 1; // getMonth() retorna 0-11, queremos 1-12
+      }
+    }
+    
+    // Si es un string
+    if (typeof dateValue === 'string') {
+      // Formato DD/MM/YYYY
+      if (dateValue.includes('/')) {
+        const parts = dateValue.split('/');
+        if (parts.length === 3) {
+          return parseInt(parts[1], 10); // El mes está en la posición 1
+        }
+      }
+      
+      // Intentar parsear como fecha ISO o timestamp string
+      const date = new Date(dateValue);
+      if (!isNaN(date.getTime())) {
+        return date.getMonth() + 1;
+      }
+    }
+  } catch (error) {
+    console.error('Error extracting month from:', dateValue, error.message);
+  }
+  
+  return null;
+};
+
+/**
+ * Extrae el año de una fecha
+ */
+const extractYear = (dateValue) => {
+  if (!dateValue) return null;
+  
+  try {
+    // Si es un número (timestamp)
+    if (typeof dateValue === 'number') {
+      const date = new Date(dateValue);
+      if (!isNaN(date.getTime())) {
+        return date.getFullYear();
+      }
+    }
+    
+    // Si es un string
+    if (typeof dateValue === 'string') {
+      // Formato DD/MM/YYYY
+      if (dateValue.includes('/')) {
+        const parts = dateValue.split('/');
+        if (parts.length === 3) {
+          return parseInt(parts[2], 10);
+        }
+      }
+      
+      const date = new Date(dateValue);
+      if (!isNaN(date.getTime())) {
+        return date.getFullYear();
+      }
+    }
+  } catch (error) {
+    console.error('Error extracting year from:', dateValue, error.message);
+  }
+  
+  return null;
+};
+
+/**
+ * Extrae el día de una fecha
+ */
+const extractDay = (dateValue) => {
+  if (!dateValue) return null;
+  
+  try {
+    // Si es un número (timestamp)
+    if (typeof dateValue === 'number') {
+      const date = new Date(dateValue);
+      if (!isNaN(date.getTime())) {
+        return date.getDate();
+      }
+    }
+    
+    // Si es un string
+    if (typeof dateValue === 'string') {
+      // Formato DD/MM/YYYY
+      if (dateValue.includes('/')) {
+        const parts = dateValue.split('/');
+        if (parts.length === 3) {
+          return parseInt(parts[0], 10);
+        }
+      }
+      
+      const date = new Date(dateValue);
+      if (!isNaN(date.getTime())) {
+        return date.getDate();
+      }
+    }
+  } catch (error) {
+    console.error('Error extracting day from:', dateValue, error.message);
+  }
+  
+  return null;
+};
+
+/**
+ * Pre-filtra documentos por fecha antes de enviar a OpenAI
+ */
+const preFilterDocuments = (documents, params) => {
+  let filtered = [...documents];
+  
+  // Filtrar por mes si está especificado
+  if (params.mesDocumento) {
+    const targetMonth = normalizeMonth(params.mesDocumento);
+    if (targetMonth) {
+      console.log(`Pre-filtering by month: ${targetMonth} (from input: ${params.mesDocumento})`);
+      filtered = filtered.filter(doc => {
+        const docMonth = extractMonth(doc.requestDate);
+        const match = docMonth === targetMonth;
+        if (!match) {
+          console.log(`Excluded: ${doc.id} - Month ${docMonth} doesn't match ${targetMonth} (requestDate: ${doc.requestDate})`);
+        } else {
+          console.log(`Included: ${doc.id} - Month ${docMonth} matches ${targetMonth}`);
+        }
+        return match;
+      });
+      console.log(`After month filter: ${filtered.length} documents`);
+    }
+  }
+  
+  // Filtrar por año si está especificado
+  if (params.anoDocumento) {
+    const targetYear = parseInt(params.anoDocumento, 10);
+    console.log(`Pre-filtering by year: ${targetYear}`);
+    filtered = filtered.filter(doc => {
+      const year = extractYear(doc.requestDate);
+      const match = year === targetYear;
+      if (!match) {
+        console.log(`Excluded: ${doc.id} - Year ${year} doesn't match ${targetYear}`);
+      }
+      return match;
+    });
+    console.log(`After year filter: ${filtered.length} documents`);
+  }
+  
+  // Filtrar por día si está especificado
+  if (params.diaDocumento) {
+    const targetDay = parseInt(params.diaDocumento, 10);
+    console.log(`Pre-filtering by day: ${targetDay}`);
+    filtered = filtered.filter(doc => {
+      const day = extractDay(doc.requestDate);
+      const match = day === targetDay;
+      if (!match) {
+        console.log(`Excluded: ${doc.id} - Day ${day} doesn't match ${targetDay}`);
+      }
+      return match;
+    });
+    console.log(`After day filter: ${filtered.length} documents`);
+  }
+  
+  return filtered;
+};
+
+/**
+ * Formatea una fecha para mostrar
+ */
+const formatDate = (dateValue) => {
+  if (!dateValue) return 'No especificado';
+  
+  try {
+    if (typeof dateValue === 'number') {
+      const date = new Date(dateValue);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString('es-CO', { 
+          day: '2-digit', 
+          month: '2-digit', 
+          year: 'numeric' 
+        });
+      }
+    }
+    
+    if (typeof dateValue === 'string') {
+      if (dateValue.includes('/')) {
+        return dateValue; // Ya está en formato DD/MM/YYYY
+      }
+      const date = new Date(dateValue);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString('es-CO', { 
+          day: '2-digit', 
+          month: '2-digit', 
+          year: 'numeric' 
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error formatting date:', dateValue, error.message);
+  }
+  
+  return String(dateValue);
+};
+
+/**
  * Realiza búsqueda semántica completa con OpenAI
- * OpenAI procesa todo: normalización, fuzzy matching, interpretación
  */
 export const performDeepSearch = async (query, documents, logs = [], params = {}) => {
   try {
@@ -18,96 +251,71 @@ export const performDeepSearch = async (query, documents, logs = [], params = {}
     }
 
     console.log('Performing deep search with params:', params);
+    console.log(`Total documents before filtering: ${documents.length}`);
     
-    // Preparar contexto completo de documentos
-    const documentsContext = documents.map((doc, idx) => {
+    // PRE-FILTRAR por fechas (año, mes, día) ANTES de enviar a OpenAI
+    const preFilteredDocs = preFilterDocuments(documents, params);
+    console.log(`Documents after pre-filtering: ${preFilteredDocs.length}`);
+    
+    // Si no hay documentos después del pre-filtro, retornar resultado vacío
+    if (preFilteredDocs.length === 0) {
+      return {
+        summary: 'No se encontraron documentos que coincidan con los criterios de fecha especificados.',
+        results: [],
+        suggestions: ['Verifica que el mes, año o día sean correctos', 'Intenta ampliar los criterios de búsqueda'],
+        confidence: 'alta',
+        totalMatches: 0
+      };
+    }
+    
+    // Preparar contexto SOLO con documentos pre-filtrados
+    const documentsContext = preFilteredDocs.slice(0, 50).map((doc, idx) => {
       return `Documento ${idx + 1}:
 ID: ${doc.id}
 Estudiante: ${doc.studentName || 'No especificado'}
-Código Estudiante: ${doc.studentId || 'N/A'}
+Código: ${doc.studentId || 'N/A'}
 UID: ${doc.studentUid || 'N/A'}
-Tipo de Documento: ${doc.documentType || 'No especificado'}
+Tipo: ${doc.documentType || 'No especificado'}
 Estado: ${doc.status || 'No especificado'}
-Fecha de Solicitud: ${doc.requestDate || 'No especificado'}
-Última Actualización: ${doc.lastUpdate || 'No especificado'}
-${doc.details ? `Detalles: ${doc.details}` : ''}
-${doc.fileUrl ? `URL: ${doc.fileUrl}` : ''}
+Fecha: ${formatDate(doc.requestDate)}
 ---`;
     }).join('\n\n');
 
-    const logsContext = logs.length > 0 ? logs.map((log, idx) => {
-      return `Log ${idx + 1}:
-ID: ${log.id}
-Fecha y Hora: ${log.timestamp}
-Usuario: ${log.user}
-Rol: ${log.role}
-Acción: ${log.action}
-Documento: ${log.documentId}
-Detalles: ${log.details}
----`;
-    }).join('\n\n') : 'No hay registros de auditoría disponibles.';
-
-    // Construir criterios de búsqueda en lenguaje natural
+    // Construir criterios simplificados
     const searchCriteria = [];
-    if (params.nombre) searchCriteria.push(`Nombre del estudiante similar a: "${params.nombre}"`);
-    if (params.codigoEstudiante) searchCriteria.push(`Código de estudiante: "${params.codigoEstudiante}"`);
-    if (params.identificacionEstudiante) searchCriteria.push(`Identificación/UID: "${params.identificacionEstudiante}"`);
-    if (params.programa) searchCriteria.push(`Programa académico: "${params.programa}"`);
-    if (params.facultad) searchCriteria.push(`Facultad: "${params.facultad}"`);
-    if (params.seccional) searchCriteria.push(`Seccional: "${params.seccional}"`);
-    if (params.tipoDocumento) searchCriteria.push(`Tipo de documento: "${params.tipoDocumento}"`);
-    if (params.anoDocumento) searchCriteria.push(`Año del documento: "${params.anoDocumento}"`);
-    if (params.mesDocumento) searchCriteria.push(`Mes del documento: "${params.mesDocumento}" (puede ser nombre del mes, abreviatura o número)`);
-    if (params.diaDocumento) searchCriteria.push(`Día del documento: "${params.diaDocumento}"`);
-    if (params.firmadoPor) searchCriteria.push(`Firmado por: "${params.firmadoPor}"`);
+    if (params.nombre) searchCriteria.push(`Nombre: "${params.nombre}"`);
+    if (params.codigoEstudiante) searchCriteria.push(`Código: "${params.codigoEstudiante}"`);
+    if (params.identificacionEstudiante) searchCriteria.push(`UID: "${params.identificacionEstudiante}"`);
+    if (params.tipoDocumento) searchCriteria.push(`Tipo: "${params.tipoDocumento}"`);
+    if (params.mesDocumento) searchCriteria.push(`Mes: ${params.mesDocumento} (ya filtrado)`);
+    if (params.anoDocumento) searchCriteria.push(`Año: ${params.anoDocumento} (ya filtrado)`);
+    if (params.diaDocumento) searchCriteria.push(`Día: ${params.diaDocumento} (ya filtrado)`);
 
     const searchCriteriaText = searchCriteria.length > 0 
-      ? searchCriteria.join('\n- ') 
-      : 'Mostrar todos los documentos disponibles';
+      ? searchCriteria.join(', ') 
+      : 'Todos los documentos';
 
-    const prompt = `Eres un asistente experto en búsqueda de documentos académicos. Tu tarea es analizar los documentos disponibles y encontrar aquellos que mejor coincidan con los criterios de búsqueda.
+    const prompt = `Analiza estos documentos académicos y encuentra los que mejor coincidan.
 
-IMPORTANTE - REGLAS DE BÚSQUEDA APROXIMADA:
-1. Para nombres: Busca coincidencias aproximadas, similar spelling, nombres parciales
-   - Ejemplo: "Daniel Leonardo Gonzalez Torres" debe encontrar "daniell-gonzalez" o "Daniel Gonzalez"
-2. Para meses: Acepta cualquier formato
-   - "10", "octubre", "oct", "Octubre", "OCTUBRE" deben ser equivalentes
-   - "1" = "enero" = "ene"
-3. Para fechas: Parsea las fechas en formato "DD/MM/YYYY" o timestamps
-4. Para emails/UIDs: Busca coincidencias parciales
-5. Si un criterio está vacío o es muy vago, ignóralo
-
-TODOS LOS DOCUMENTOS DISPONIBLES EN LA BASE DE DATOS:
+DOCUMENTOS PRE-FILTRADOS (${preFilteredDocs.length} total):
 ${documentsContext}
 
-REGISTRO DE AUDITORÍA:
-${logsContext}
+CRITERIOS: ${searchCriteriaText}
+CONSULTA: ${query}
 
-CRITERIOS DE BÚSQUEDA DEL USUARIO:
-${searchCriteriaText}
+REGLAS:
+1. Usa fuzzy matching para nombres (ej: "Daniel Gonzalez" coincide con "daniell-gonzalez")
+2. Los documentos ya fueron filtrados por fecha, enfócate en otros criterios
+3. Si no hay criterios específicos adicionales, retorna todos los IDs disponibles
 
-CONSULTA TEXTUAL: ${query}
-
-INSTRUCCIONES DE RESPUESTA:
-1. Analiza TODOS los documentos y encuentra los que mejor coincidan con los criterios
-2. Usa lógica de búsqueda aproximada (fuzzy matching) para nombres
-3. Normaliza meses automáticamente (octubre = 10 = oct)
-4. Retorna ÚNICAMENTE un JSON válido con esta estructura exacta:
-
+Responde SOLO con JSON:
 {
-  "summary": "Descripción breve de lo encontrado (máximo 3 frases)",
-  "matchedDocumentIds": ["id1", "id2", "id3"],
+  "summary": "breve descripción",
+  "matchedDocumentIds": ["id1", "id2"],
   "totalMatches": número,
   "confidence": "alta/media/baja",
-  "suggestions": ["sugerencia1", "sugerencia2"]
-}
-
-CRÍTICO: 
-- Incluye en "matchedDocumentIds" los IDs de TODOS los documentos que coincidan
-- Si no hay coincidencias exactas pero hay aproximadas, inclúyelas con confidence "media" o "baja"
-- Si no encuentras nada, retorna "matchedDocumentIds": [] y explica en "summary"
-- NO incluyas explicaciones fuera del JSON
-- SOLO retorna el JSON, nada más`;
+  "suggestions": []
+}`;
 
     console.log('Sending request to OpenAI...');
 
@@ -116,15 +324,15 @@ CRÍTICO:
       messages: [
         {
           role: 'system',
-          content: 'Eres un asistente especializado en búsqueda documental con capacidades de fuzzy matching y normalización de datos. SIEMPRE respondes con JSON válido.'
+          content: 'Eres un asistente de búsqueda documental. Respondes SOLO con JSON válido.'
         },
         {
           role: 'user',
           content: prompt
         }
       ],
-      temperature: 0.3,
-      max_tokens: 2000,
+      temperature: 0.2,
+      max_tokens: 1500,
       response_format: { type: "json_object" }
     });
 
@@ -136,17 +344,16 @@ CRÍTICO:
       parsedResponse = JSON.parse(aiResponse);
     } catch (parseError) {
       console.error('Error parsing OpenAI response:', parseError);
-      console.error('Raw response:', aiResponse);
       throw new Error('Error al parsear la respuesta de OpenAI');
     }
 
-    // Filtrar documentos basados en los IDs que OpenAI identificó
-    const matchedDocuments = documents.filter(doc => 
+    // Filtrar documentos basados en IDs (de los pre-filtrados)
+    const matchedDocuments = preFilteredDocs.filter(doc => 
       parsedResponse.matchedDocumentIds && 
       parsedResponse.matchedDocumentIds.includes(doc.id)
     );
 
-    console.log(`OpenAI matched ${matchedDocuments.length} documents`);
+    console.log(`Final matches: ${matchedDocuments.length} documents`);
 
     return {
       summary: parsedResponse.summary || 'Búsqueda completada',
@@ -164,13 +371,12 @@ CRÍTICO:
       })),
       suggestions: parsedResponse.suggestions || [],
       confidence: parsedResponse.confidence || 'media',
-      totalMatches: parsedResponse.totalMatches || matchedDocuments.length
+      totalMatches: matchedDocuments.length
     };
 
   } catch (error) {
     console.error('Error in performDeepSearch:', error);
     
-    // Si es error de OpenAI, dar más detalles
     if (error.response) {
       console.error('OpenAI API Error:', error.response.data);
     }
